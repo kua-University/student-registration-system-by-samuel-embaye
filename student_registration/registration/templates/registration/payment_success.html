@@ -1,0 +1,16 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment Successful</title>
+    <link rel="stylesheet" href="{% static 'registration/styles.css' %}">
+</head>
+<body>
+    <div class="container">
+        <div class="message">
+            <h1>Payment Successful!</h1>
+            <p>Thank you for registering, {{ student.name }}!</p>
+        </div>
+    </div>
+</body>
+</html>

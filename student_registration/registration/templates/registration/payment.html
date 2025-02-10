@@ -1,0 +1,20 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment</title>
+    <link rel="stylesheet" href="{% static 'registration/styles.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Payment for {{ student.name }}</h1>
+        <div class="payment-info">
+            <p>Course: {{ student.course }}</p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit">Proceed to Payment</button>
+        </form>
+    </div>
+</body>
+</html>
