@@ -135,3 +135,38 @@ class PaymentFailureIntegrationTest(TestCase):
         # Check that the payment status remains unchanged
         self.student.refresh_from_db()
         self.assertFalse(self.student.payment_status)
+
+class DuplicateRegistrationTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.register_url = reverse('register')
+        self.student = Student.objects.create(
+            name='John Doe',
+            email='john@example.com',
+            course='Python Programming',
+            payment_status=False
+        )
+        self.form_data = {
+            'name': 'John Doe',
+            'email': 'john@example.com',
+            'course': 'Python Programming',
+        }
+
+    def test_duplicate_registration(self):
+        """
+        Test that a student cannot register with an existing email:
+        1. Submit the registration form with an already registered email.
+        2. Verify the form is not valid.
+        3. Verify the student count remains the same.
+        4. Verify the user sees an appropriate error message.
+        """
+        response = self.client.post(self.register_url, self.form_data)
+
+        self.assertEqual(Student.objects.filter(email='john@example.com').count(), 1)
+
+        form = response.context['form']
+        self.assertFalse(form.is_valid())
+        self.assertIn('email', form.errors)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'registration/register.html')
