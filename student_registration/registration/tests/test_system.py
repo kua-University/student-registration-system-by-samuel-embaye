@@ -8,7 +8,8 @@ import pytest
 # Constants
 BASE_URL = "http://127.0.0.1:8000"
 REGISTER_URL = f"{BASE_URL}/register/register/"  # Correct registration URL
-STRIPE_TEST_CARD = "4242 4242 4242 4242"  # Stripe test card for successful payment
+STRIPE_TEST_CARD_SUCCESS = "4242 4242 4242 4242"  # Stripe test card for successful payment
+STRIPE_TEST_CARD_FAIL = "4000 0000 0000 0002"
 STRIPE_TEST_CVC = "123"
 STRIPE_TEST_EXPIRY = "12/28"
 
@@ -28,59 +29,88 @@ def test_student_registration_and_payment_flow(browser):
     4. Simulate payment using Stripe's test card.
     5. Verify payment success and database update.
     """
-    # Step 1: Navigate to the registration page
+    
     browser.get(REGISTER_URL)
-    print("Current URL:", browser.current_url)
-    print("Page Title:", browser.title)
     assert "Student Registration" in browser.title
 
-    # Step 2: Fill out the registration form
-    browser.find_element(By.NAME, "name").send_keys("John Doe")
-    browser.find_element(By.NAME, "email").send_keys("john.doe@example.com")
-    browser.find_element(By.NAME, "course").send_keys("Python Programming")
+    browser.find_element(By.NAME, "name").send_keys("Instructor Messele")
+    browser.find_element(By.NAME, "email").send_keys("inst.mese@example.com")
+    browser.find_element(By.NAME, "course").send_keys("Testing Exam kebid neru")
     browser.find_element(By.TAG_NAME, "button").click()
 
-    # Step 3: Verify redirection to the payment page
-    WebDriverWait(browser, 10).until(
-        EC.title_contains("Payment")
-    )
-    print("Payment Page URL:", browser.current_url)
+    WebDriverWait(browser, 10).until(EC.title_contains("Payment"))
     assert "Payment" in browser.title
 
-    # Step 4: Proceed to payment
     browser.find_element(By.TAG_NAME, "button").click()
 
-    # Step 5: Simulate Stripe payment (using test card)
-    # Wait for Stripe Checkout to load
     time.sleep(5)  # Adjust sleep time if necessary
 
     # Wait for the Stripe iframe to be present
     iframe = WebDriverWait(browser, 10).until(
         EC.presence_of_element_located((By.XPATH, "//iframe[contains(@name, 'stripe')]"))
     )
-    print("Stripe iframe found:", iframe.get_attribute("name"))
-
-    # Switch to the Stripe iframe
     browser.switch_to.frame(iframe)
 
-    # Wait for the card number field to be present
     card_number_field = WebDriverWait(browser, 10).until(
-        EC.presence_of_element_located((By.NAME, "cardnumber"))
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='cardnumber']"))
     )
-    print("Card number field found:", card_number_field.get_attribute("name"))
-
-    # Fill out Stripe's payment form
-    card_number_field.send_keys(STRIPE_TEST_CARD)
+    
+    card_number_field.send_keys(STRIPE_TEST_CARD_SUCCESS)
     browser.find_element(By.NAME, "exp-date").send_keys(STRIPE_TEST_EXPIRY)
     browser.find_element(By.NAME, "cvc").send_keys(STRIPE_TEST_CVC)
     browser.find_element(By.TAG_NAME, "button").click()
 
-    # Switch back to the main window
     browser.switch_to.default_content()
-
-    # Step 6: Verify redirection to the payment success page
-    WebDriverWait(browser, 10).until(
-        EC.title_contains("Payment Successful")
-    )
-    print("Payment Success Page URL:", browser.current_url)
+    WebDriverWait(browser, 10).until(EC.title_contains("Payment Successful"))
     assert "Payment Successful" in browser.title
+    def test_invalid_registration(browser):
+    """
+    Test invalid registration form submission:
+    1. Navigate to the registration page.
+    2. Submit an empty form.
+    3. Verify form validation errors.
+    """
+    browser.get(REGISTER_URL)
+
+    browser.find_element(By.TAG_NAME, "button").click()  # Submit without filling fields
+
+    error_messages = WebDriverWait(browser, 5).until(
+        EC.presence_of_all_elements_located((By.CLASS_NAME, "error-message"))
+    )
+
+    assert len(error_messages) > 0, "Expected validation errors but found none."
+
+def test_failed_payment_flow(browser):
+    """
+    Test failed payment flow:
+    1. Register a student.
+    2. Attempt payment with a declined test card.
+    3. Verify redirection to the payment failure page.
+    """
+    browser.get(REGISTER_URL)
+    browser.find_element(By.NAME, "name").send_keys("Test User")
+    browser.find_element(By.NAME, "email").send_keys("testuser@example.com")
+    browser.find_element(By.NAME, "course").send_keys("Python Testing")
+    browser.find_element(By.TAG_NAME, "button").click()
+
+    WebDriverWait(browser, 10).until(EC.title_contains("Payment"))
+    browser.find_element(By.TAG_NAME, "button").click()
+    time.sleep(5)
+
+    iframe = WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//iframe[contains(@name, 'stripe')]"))
+    )
+    browser.switch_to.frame(iframe)
+
+    card_number_field = WebDriverWait(browser, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='cardnumber']"))
+    )
+
+    card_number_field.send_keys(STRIPE_TEST_CARD_FAIL)  # Declined card
+    browser.find_element(By.NAME, "exp-date").send_keys(STRIPE_TEST_EXPIRY)
+    browser.find_element(By.NAME, "cvc").send_keys(STRIPE_TEST_CVC)
+    browser.find_element(By.TAG_NAME, "button").click()
+
+    browser.switch_to.default_content()
+    WebDriverWait(browser, 10).until(EC.title_contains("Payment Failed"))
+    assert "Payment Failed" in browser.title
